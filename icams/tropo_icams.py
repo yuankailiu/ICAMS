@@ -194,7 +194,7 @@ def main(argv):
 
 
     if inps.project=='los':
-        slc_par_str = ' --sar-par ' + inps.sar_par
+        slc_par_str = str(inps.sar_par) # sar_par is the required argument
     else:
         slc_par_str = ''
 
