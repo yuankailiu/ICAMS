@@ -26,6 +26,7 @@ from pykrige import OrdinaryKriging
 from pykrige import variogram_models
 #import matlab.engine # using matlab to estimate the variogram parameters
 from mintpy.utils import ptime
+import xml.etree.ElementTree as ET
 ###############################################################
 
 model_dict = {'linear': elevation_models.linear_elevation_model,
@@ -204,10 +205,75 @@ def snwe2str(snwe):
         area += '_E{}'.format(abs(e))
     return area
 
+def read_par_orb_xml(xml_file):
+    tree = ET.parse(xml_file)
+    root = tree.getroot()
+
+    ## fetch SAR sensing time
+    sensingStart = []
+    sensingStop  = []
+    for property in root.iter('property'):
+        if property.attrib['name'].startswith('sensingstart'):
+            for value in property.iter('value'):
+                utc_start = value.text
+                hr, mi, sc = np.array(utc_start.split()[-1].split(':')).astype(float)
+                sensingStart.append(hr*3600 + mi*60 + sc)
+        if property.attrib['name'].startswith('sensingstop'):
+            for value in property.iter('value'):
+                utc_stop = value.text
+                hr, mi, sc = np.array(utc_stop.split()[-1].split(':')).astype(float)
+                sensingStop.append(hr*3600 + mi*60 + sc)
+    start_sar = sorted(sensingStart)[0]
+    end_sar   = sorted(sensingStop)[-1]
+    cent_time = (start_sar + end_sar)/2
+    #print(start_sar, cent_time, end_sar, end_sar-start_sar)
+
+    ## fetch orbit state positions
+    orbit_SV = {}
+    for component in root.iter('component'):
+        if component.attrib['name'].startswith('statevector'):
+            for property in component.iter('property'):
+                if property.attrib['name'].startswith('position'):
+                    for value in property.iter('value'):
+                        position = value.text
+                if property.attrib['name'].startswith('time'):
+                    for value in property.iter('value'):
+                        utc = value.text
+                if property.attrib['name'].startswith('velocity'):
+                    for value in property.iter('value'):
+                        velocity = value.text
+
+            name = component.attrib['name']
+
+            date_str = utc.split()[0]
+            date     = ''.join(date_str.split('-'))
+            hr, mi, sc = np.array(utc.split()[-1].split(':')).astype(float)
+            time     = hr*3600 + mi*60 + sc
+            position = np.array(position[1:-1].split(', ')).astype(float)
+            velocity = np.array(velocity[1:-1].split(', ')).astype(float)
+            if name not in orbit_SV:
+                orbit_SV[name] = [time-start_sar]+ list(position)
+
+    # sort by state time
+    orbit_SV = sorted(orbit_SV.items(), key=lambda x:x[1])
+
+    out0 = date + '_orbit0'
+    out = date + '_orbit'
+    with open(out0, 'w') as fo:
+        for (key, val) in orbit_SV:
+            line = f"{val[0]}  {key}  {val[1]}  {val[2]}  {val[3]}  m  m  m\n"
+            fo.write(line)
+
+    call_str = "awk '{print $1,$3,$4,$5}' " + out0 + " >" + out
+    os.system(call_str)
+    orb_data = ut.read_txt2array(out)
+    return orb_data, date, start_sar, end_sar, cent_time
+
+
 def read_par_orb(slc_par):
 
     date0 = ut.read_gamma_par(slc_par,'read', 'date')
-    date = date0.split(' ')[0] + date0.split(' ')[1] + date0.split(' ')[2]
+    date = f'{int(date0.split()[0]):04d}' + f'{int(date0.split()[1]):02d}' + f'{int(date0.split()[2]):02d}'
 
     first_sar = ut.read_gamma_par(slc_par,'read', 'start_time')
     first_sar = str(float(first_sar.split('s')[0]))
@@ -295,7 +361,10 @@ def main(argv):
 
     geo_file = inps.geo_file
     datasetNames = ut.get_dataNames(geo_file)
-    meta = ut.read_attr(geo_file)
+    if inps.ref_file:
+        meta = ut.read_attr(inps.ref_file)
+    else:
+        meta = ut.read_attr(geo_file)
     if 'latitude' in datasetNames:
         lats = ut.read_hdf5(geo_file,datasetName='latitude')[0]
         lons = ut.read_hdf5(geo_file,datasetName='longitude')[0]
@@ -305,36 +374,57 @@ def main(argv):
 
     if inps.project =='los':
         slc_par  = inps.sar_par
-        orb_data = read_par_orb(slc_par)
+        if slc_par.split('.')[-1] == 'par':
+            orb_data = read_par_orb(slc_par)
+        elif slc_par.split('.')[-1] == 'xml':
+            orb_data, date, start_sar, end_sar, cent_time = read_par_orb_xml(slc_par)
 
     attr = ut.read_attr(geo_file)
-    if inps.sar_par:
+    if inps.sar_par and inps.sar_par.split('.')[-1] == 'par':
         slc_par = inps.sar_par
         date0 = ut.read_gamma_par(slc_par,'read', 'date')
-        date = str(int(date0.split(' ')[0])) + str(int(date0.split(' ')[1])) + str(int(date0.split(' ')[2]))
+        date = f'{int(date0.split()[0]):04d}' + f'{int(date0.split()[1]):02d}' + f'{int(date0.split()[2]):02d}'
 
     if inps.date:
         date = inps.date
 
     if inps.sar_par:
-        slc_par  = inps.sar_par
-        start_sar = ut.read_gamma_par(slc_par,'read', 'start_time')
-        earth_R = ut.read_gamma_par(slc_par,'read', 'earth_radius_below_sensor')
-        end_sar = ut.read_gamma_par(slc_par,'read', 'end_time')
-        cent_time = ut.read_gamma_par(slc_par,'read', 'center_time')
+        if inps.sar_par.split('.')[-1] == 'par':
+            slc_par  = inps.sar_par
+            start_sar = ut.read_gamma_par(slc_par,'read', 'start_time')
+            earth_R = ut.read_gamma_par(slc_par,'read', 'earth_radius_below_sensor')
+            end_sar = ut.read_gamma_par(slc_par,'read', 'end_time')
+            cent_time = ut.read_gamma_par(slc_par,'read', 'center_time')
 
-        attr['EARTH_RADIUS'] = str(float(earth_R.split('m')[0]))
-        attr['END_TIME'] = str(float(end_sar.split('s')[0]))
-        attr['START_TIME'] = str(float(start_sar.split('s')[0]))
-        attr['DATE'] = date
-        attr['CENTER_TIME'] = str(float(cent_time.split('s')[0]))
+            attr['EARTH_RADIUS'] = str(float(earth_R.split('m')[0]))
+            attr['END_TIME'] = str(float(end_sar.split('s')[0]))
+            attr['START_TIME'] = str(float(start_sar.split('s')[0]))
+            attr['DATE'] = date
+            attr['CENTER_TIME'] = str(float(cent_time.split('s')[0]))
+
+        elif inps.sar_par.split('.')[-1] == 'xml':
+            attr['EARTH_RADIUS'] = 'NOT_READY'
+            attr['END_TIME']     = str(end_sar)
+            attr['START_TIME']   = str(start_sar)
+            attr['DATE']         = date
+            attr['CENTER_TIME']  = str(cent_time)
+
 
     if inps.ref_file:
         attr0 = ut.read_attr(inps.ref_file)
         attr['EARTH_RADIUS'] = attr0['EARTH_RADIUS']
-        attr['CENTER_TIME'] = attr0['CENTER_LINE_UTC']
-        attr['END_TIME'] = attr0['CENTER_LINE_UTC']
-        attr['START_TIME'] = attr0['CENTER_LINE_UTC']
+        if inps.sar_par.split('.')[-1] == 'par':
+            attr['CENTER_TIME'] = attr0['CENTER_LINE_UTC']
+            attr['END_TIME'] = attr0['CENTER_LINE_UTC']
+            attr['START_TIME'] = attr0['CENTER_LINE_UTC']
+        attr['LAT_REF1'] = attr0['LAT_REF1']
+        attr['LAT_REF2'] = attr0['LAT_REF2']
+        attr['LAT_REF3'] = attr0['LAT_REF3']
+        attr['LAT_REF4'] = attr0['LAT_REF4']
+        attr['LON_REF1'] = attr0['LON_REF1']
+        attr['LON_REF2'] = attr0['LON_REF2']
+        attr['LON_REF3'] = attr0['LON_REF3']
+        attr['LON_REF4'] = attr0['LON_REF4']
         attr['DATE'] = date
 
 
@@ -399,10 +489,11 @@ def main(argv):
     heis = heis + mean_geoid # geoid correct
     heis0 = heis.flatten()
 
-    maxdem = max(heis0)
-    mindem = min(heis0)
+    maxdem = np.nanmax(heis0)
+    mindem = np.nanmin(heis0)
     if mindem < -200:
         mindem = -100.0
+    print('Min/Max DEM height: ', mindem, maxdem)
 
     hh = heis0[~np.isnan(lats0)]
     lala = lats0[~np.isnan(lats0)]
@@ -428,7 +519,7 @@ def main(argv):
     los_intp_binary = era5_dir + '/los_intp.npy'
     if inps.project =='los':
         # calc los coords
-        #print('Start to calc LOS locations ...')
+        print('Start to calc LOS locations ...')
         if not os.path.isfile(lat_intp_binary):
             lat_intp, lon_intp, los_intp = ut.get_LOS3D_coords(latlist,lonlist,hgtlvs, orb_data, attr)
             np.save(lat_intp_binary, lat_intp); np.save(lon_intp_binary, lon_intp); np.save(los_intp_binary, los_intp)
@@ -436,14 +527,15 @@ def main(argv):
             lat_intp = np.load(lat_intp_binary);lon_intp = np.load(lon_intp_binary);los_intp = np.load(los_intp_binary)
 
         # get los locations atmospheric paramters
-        #print('Start to calc LOS atmospheric parameters ...')
+        print(f'Start to calc LOS atmospheric parameters ...(row, column, n_level = {Presi.shape})')
         LosP,LosT,LosV = ut.get_LOS_parameters(latlist,lonlist,Presi,Tempi,Vpri,lat_intp, lon_intp,inps.method,inps.sklm_points_numb)
         # calc los delays
-        #print('Start to calculate LOS delays ...')
+        print('Start to calculate LOS delays ...')
         ddrylos,dwetlos = ut.losPTV2del(LosP,LosT,LosV,los_intp ,cdic,verbose=False)
         # interp grid delays
         print('Start to interpolate delays ...')
         dwet_intp,ddry_intp, lonvv, latvv, hgtuse = ut.icams_griddata_los(lon_intp,lat_intp,hgtlvs,ddrylos,dwetlos,attr, maxdem, mindem, inps.lalo_rescale,inps.method,inps.sklm_points_numb)
+        print(f' (length, width, hgt_levels = {latvv.shape, len(hgtuse)})')
 
         delay_tot = dwet_intp + ddry_intp
 
@@ -460,6 +552,7 @@ def main(argv):
         sar_dry0[~np.isnan(lats0)] = sar_dry00
         sar_dry0 = sar_dry0.reshape(lats.shape)
 
+        print(f' (length, width = {sar_dry0.shape})')
         sar_delay = sar_wet0 + sar_dry0
 
     elif inps.project =='zenith':

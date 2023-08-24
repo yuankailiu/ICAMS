@@ -3,11 +3,11 @@
 # Copyright 2019 Yunmeng Cao                               #
 # Contact: ymcmrs@gmail.com                                #
 ############################################################
-# Part of the program is modified from PyAPS                      
+# Part of the program is modified from PyAPS
 # Copyright 2012, by the California Institute of Technology
-# Contact: earthdef@gps.caltech.edu                        
-# Modified by A. Benoit and R. Jolivet 2019                
-# Contact: insar@geologie.ens.fr                           
+# Contact: earthdef@gps.caltech.edu
+# Modified by A. Benoit and R. Jolivet 2019
+# Contact: insar@geologie.ens.fr
 
 import configparser as ConfigParser
 import sys
@@ -67,7 +67,7 @@ def ECMWFdload(bdate,hr,filedir,model='ERA5',datatype='fc',humidity='Q',snwe=Non
         * snwe      : area extent (tuple of int)
         * humidity  : humidity
     '''
-    
+
     #-------------------------------------------
     # Initialize
 
@@ -86,7 +86,7 @@ def ECMWFdload(bdate,hr,filedir,model='ERA5',datatype='fc',humidity='Q',snwe=Non
 
     # Humidity
     assert humidity in ('Q','R'), 'Unknown humidity field for ECMWF'
-    
+
     if humidity in 'Q':
         humidparam = 'specific_humidity'
     elif humidity in 'R':
@@ -106,9 +106,9 @@ def ECMWFdload(bdate,hr,filedir,model='ERA5',datatype='fc',humidity='Q',snwe=Non
     for k in range(len(bdate)):
         day = bdate[k]
         fname = flist[k]
-        
+
         #-------------------------------------------
-        # Request for CDS API client (new ECMWF platform, for ERA-5)    
+        # Request for CDS API client (new ECMWF platform, for ERA-5)
         url = 'https://cds.climate.copernicus.eu/api/v2'
         key = config.get('CDS', 'key')
 
@@ -116,7 +116,7 @@ def ECMWFdload(bdate,hr,filedir,model='ERA5',datatype='fc',humidity='Q',snwe=Non
         c = cdsapi.Client(url=url, key=key)
 
         # Pressure levels
-        pressure_lvls = ['1','2','3','5','7','10','20','30','50', 
+        pressure_lvls = ['1','2','3','5','7','10','20','30','50',
                             '70','100','125','150','175','200','225',
                             '250','300','350','400','450','500','550',
                             '600','650','700','750','775','800','825',
@@ -181,7 +181,7 @@ def initconst():
     constdict['maxAlt'] = 50000.0
     constdict['minAltP'] = -200.0
     constdict['Rearth'] = 6371 # km
-    return constdict    
+    return constdict
 
 def cc_era(tmp,cdic):
     '''Clausius Clayperon law used by ERA Interim.
@@ -201,7 +201,7 @@ def cc_era(tmp,cdic):
     a3i = cdic['a3i']
     a4i = cdic['a4i']
     T3  = cdic['T3']
-    Ti  = cdic['Ti'] 
+    Ti  = cdic['Ti']
 
     esatw = a1w*np.exp(a3w*(tmp-T3)/(tmp-a4w))
     esati = a1i*np.exp(a3i*(tmp-T3)/(tmp-a4i))
@@ -231,7 +231,7 @@ def get_ecmwf(model,fname,cdic, humidity='Q',minlat= -90,maxlat = 90,minlon = 0,
         * minlon (np.float):  Minimum longitude
         * maxlon (np.float):  Maximum longitude
         * cdic   (np.float):  Dictionary of constants
-    
+
     Kwargs:
         * humidity    (str): Specific ('Q') or relative humidity ('R').
 
@@ -254,13 +254,13 @@ def get_ecmwf(model,fname,cdic, humidity='Q',minlat= -90,maxlat = 90,minlon = 0,
     if model in 'HRES':
         if verbose:
             print('INFO: USING PRESSURE LEVELS OF HRES DATA')
-        lvls = np.array([1, 2, 3, 5, 7, 10, 20, 30, 50, 70, 100, 150, 
+        lvls = np.array([1, 2, 3, 5, 7, 10, 20, 30, 50, 70, 100, 150,
                          200, 250, 300, 400, 500, 600, 700,
                          800, 850, 900, 925, 950, 1000])
     else:
         if verbose:
             print('INFO: USING PRESSURE LEVELS OF ERA-INT OR ERA-5 DATA')
-        lvls = np.array([1, 2, 3, 5, 7, 10, 20, 30, 50, 70, 100, 125, 150, 175, 
+        lvls = np.array([1, 2, 3, 5, 7, 10, 20, 30, 50, 70, 100, 125, 150, 175,
                          200, 225, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 775,
                          800, 825, 850, 875, 900, 925, 950, 975, 1000])
     nlvls = len(lvls)
@@ -275,12 +275,12 @@ def get_ecmwf(model,fname,cdic, humidity='Q',minlat= -90,maxlat = 90,minlon = 0,
     if model == 'ERA5':
         lons[lons < 0.] += 360.
     g = cdic['g']
-    
+
     mask = ((lats > minlat) & (lats < maxlat)) & ((lons > minlon) & (lons < maxlon))
-    #extrqct indices 
+    #extrqct indices
     uu = [i for i in list(range(np.shape(mask)[0])) if any(mask[i,:])]
     vv = [j for j in list(range(np.shape(mask)[1])) if any(mask[:,j])]
-    
+
     latlist = lats[uu,:][:,vv]
     lonlist = lons[uu,:][:,vv]
     #nstn = len(lat.flatten())
@@ -304,17 +304,17 @@ def get_ecmwf(model,fname,cdic, humidity='Q',minlat= -90,maxlat = 90,minlon = 0,
         tmp[i,:,:] = temp
 
         if humidity in ('R'):   # Relative humidity
-            esat = cc_era(temp,cdic)       
+            esat = cc_era(temp,cdic)
             temp = grb[2].values[uu,:][:,vv]/100.0
             vpr[i,:,:] = temp*esat
-            
+
         elif humidity in ('Q'):
             val = grb[2].values  #Specific humidity
             temp = grb[2].values[uu,:][:,vv]
             vpr[i,:,:] = temp*lvls[i]*alpha/(1+(alpha - 1)*temp)
-            
+
         else:
-            assert 1==0, 'Undefined Humidity in get_ecmwf().'     
+            assert 1==0, 'Undefined Humidity in get_ecmwf().'
 
     return lvls,latlist,lonlist,gph,tmp,vpr
 ###############Completed GET_ECMWF########################################
@@ -372,14 +372,14 @@ def intP2H(lvls,hgt,gph,tmp,vpr,cdic,verbose=False):
                 eFlag = True
                 hx = np.concatenate(([maxAlt+1],hx),axis=0) #changed from 1 to 0 (-1 should also work), CL
 
-            hx = -hx             #Splines needs monotonically increasing.    
-    
+            hx = -hx             #Splines needs monotonically increasing.
+
             hy = lvls.copy()     #Interpolating pressure values
             if (sFlag == True):
                 val = hy[-1] +(hx[-1] - hx[-2])* (hy[-1] - hy[-2])/(hx[-2]-hx[-3])
                 hy = np.concatenate((hy,[val]),axis=0) #changed from 1 to 0 (-1 should also work), CL
             if (eFlag == True):
-                val = hy[0] - (hx[0] - hx[1]) * (hy[0] - hy[1])/(hx[1]-hx[2]) 
+                val = hy[0] - (hx[0] - hx[1]) * (hy[0] - hy[1])/(hx[1]-hx[2])
                 hy = np.concatenate(([val],hy),axis=0) #changed from 1 to 0 (-1 should also work), CL
 
             tck = intp.interp1d(hx,hy,kind='cubic')
@@ -400,7 +400,7 @@ def intP2H(lvls,hgt,gph,tmp,vpr,cdic,verbose=False):
             temp = tck(-hgt)
             Tempi[i,j,:] = temp.copy()
             del temp
-    
+
             temp = vpr[:,i,j]          #Interpolating vapor pressure
             hy = temp.copy()
             if (sFlag == True):
@@ -477,7 +477,7 @@ def PTV2del(Presi,Tempi,Vpri,hgt,cdict,verbose=False):
     val = val[:,:,None]
     S2 = np.concatenate((S2,val),axis=-1)
     DWet2 = -1.0e-6*((k2-k1*Rd/Rv)*S1+k3*S2)
-    
+
     for i in range(nlat):
         for j in range(nlon):
             DWet2[i,j,:]  = DWet2[i,j,:] - DWet2[i,j,-1]
@@ -533,7 +533,7 @@ def PTV2del_Imp(Presi,Tempi,Vpri,hgt,cdict,verbose=False):
     val = val[:,:,None]
     S2 = np.concatenate((S2,val),axis=-1)
     DWet2 = -1.0e-6*((k2-k1*Rd/Rv)*S1+k3*S2)
-    
+
     for i in range(nlat):
         for j in range(nlon):
             DWet2[i,j,:]  = DWet2[i,j,:] - DWet2[i,j,-1]
@@ -574,7 +574,7 @@ def make3dintp(Delfn,lonlist,latlist,hgt,hgtscale):
             xyz[count,2] = hgt[n]/hgtscale     #For same grid spacing as lat/lon
             count += 1
 
-    #xyz[:,2] = xyz[:,2] #+ 1e-30*np.random.rand((nstn*nhgt))/hgtscale #For unique Delaunay    
+    #xyz[:,2] = xyz[:,2] #+ 1e-30*np.random.rand((nstn*nhgt))/hgtscale #For unique Delaunay
     del latlist
     del lonlist
     del hgt
@@ -595,30 +595,30 @@ def get_delay_sample(height_level, delay_level, heigh_samples):
 
     Returns:
         * dels  1D (np.array) : delay samples at the corresponding hgts
-'''    
+'''
     #nstn = delay_level.shape[0]   # samples of horizontal level  (lat, lon)
     #nhgt = delay_level.shape[1]   # samples of vertical level    (altitude)
     #delay_sample = np.zeros((nstn,), dtype = np.float32)
-    
+
     r0 = delay_level.shape[0]
     c0 = delay_level.shape[1]
-    
+
     delay_sample = np.zeros((r0,c0), dtype = np.float32)
-    
+
     for i in range(r0):
         for j in range(c0):
             hy = delay_level[i,j,:]
             hx = height_level
             tck = intp.interp1d(hx,hy,kind='cubic')
             delay_sample[i,j] = tck(heigh_samples[i,j])
-            
-    
+
+
     #for i in range(nstn):
     #    hy = delay_level[i,:]
     #    hx = height_level[i,:]
     #    tck = intp.interp1d(hx,hy,kind='cubic')
     #    delay_sample[i] = tck(heigh_samples[i])
-    
+
     return delay_sample
 
 def read_gamma_par(inFile, task, keyword):
@@ -638,7 +638,7 @@ def read_attr(fname):
     # read hdf5
     with h5py.File(fname, 'r') as f:
         atr = dict(f.attrs)
-        
+
     return atr
 
 def read_hdf5(fname, datasetName=None, box=None):
@@ -646,7 +646,7 @@ def read_hdf5(fname, datasetName=None, box=None):
     with h5py.File(fname, 'r') as f:
         data = f[datasetName][:]
         atr = dict(f.attrs)
-        
+
     return data, atr
 
 def read_txt_line(txt):
@@ -655,11 +655,11 @@ def read_txt_line(txt):
     # use readlines to read all lines in the file
     # The variable "lines" is a list containing all lines in the file
     lines = f.readlines()
-    lines0 = [line.strip() for line in lines] 
+    lines0 = [line.strip() for line in lines]
     f.close()
-    
+
     # remove empty lines
-    lines_out = [] 
+    lines_out = []
     for line in lines0:
         if not len(line) ==0:
             lines_out.append(line)
@@ -671,15 +671,15 @@ def is_number(s):
         return True
     except ValueError:
         pass
- 
+
     try:
         import unicodedata
         unicodedata.numeric(s)
         return True
     except (TypeError, ValueError):
         pass
- 
-    return False  
+
+    return False
 
 
 def write_h5(datasetDict, out_file, metadata=None, ref_file=None, compression=None):
@@ -691,27 +691,27 @@ def write_h5(datasetDict, out_file, metadata=None, ref_file=None, compression=No
     print('create HDF5 file: {} with w mode'.format(out_file))
     dt = h5py.special_dtype(vlen=np.dtype('float64'))
 
-    
+
     with h5py.File(out_file, 'w') as f:
         for dsName in datasetDict.keys():
             data = datasetDict[dsName]
             ds = f.create_dataset(dsName,
                               data=data,
                               compression=compression)
-        
+
         for key, value in metadata.items():
             f.attrs[key] = str(value)
             #print(key + ': ' +  value)
     print('finished writing to {}'.format(out_file))
-        
-    return out_file  
+
+    return out_file
 
 def remove_ramp(lat,lon,data):
     # mod = a*x + b*y + c*x*y
     lat = lat/180*np.pi
-    lon = lon/180*np.pi  
+    lon = lon/180*np.pi
     lon = lon*np.cos(lat) # to get isometrics coordinates
-    
+
     p0 = [0.0001,0.0001,0.0001,0.0000001]
     plsq = leastsq(residual_trend,p0,args = (lat,lon,data))
     para = plsq[0]
@@ -721,19 +721,19 @@ def remove_ramp(lat,lon,data):
 
 def func_trend(lat,lon,p):
     a0,b0,c0,d0 = p
-    
+
     return a0 + b0*lat + c0*lon +d0*lat*lon
 
 def residual_trend(p,lat,lon,y0):
-    a0,b0,c0,d0 = p 
+    a0,b0,c0,d0 = p
     return y0 - func_trend(lat,lon,p)
 
 def func_trend_model(lat,lon,p):
     lat = lat/180*np.pi
-    lon = lon/180*np.pi  
+    lon = lon/180*np.pi
     lon = lon*np.cos(lat) # to get isometrics coordinates
     a0,b0,c0,d0 = p
-    
+
     return a0 + b0*lat + c0*lon +d0*lat*lon
 
 def print_progress(iteration, total, prefix='calculating:', suffix='complete', decimals=1, barLength=50, elapsed_time=None):
@@ -744,10 +744,10 @@ def print_progress(iteration, total, prefix='calculating:', suffix='complete', d
         total       - Required  : total iterations (Int)
         prefix      - Optional  : prefix string (Str)
         suffix      - Optional  : suffix string (Str)
-        decimals    - Optional  : number of decimals in percent complete (Int) 
-        barLength   - Optional  : character length of bar (Int) 
+        decimals    - Optional  : number of decimals in percent complete (Int)
+        barLength   - Optional  : character length of bar (Int)
         elapsed_time- Optional  : elapsed time in seconds (Int/Float)
-    
+
     Reference: http://stackoverflow.com/questions/3173320/text-progress-bar-in-the-console
     """
     filledLength    = int(round(barLength * iteration / float(total)))
@@ -823,21 +823,21 @@ def get_lat_lon_rdc(meta):
         for j in range(width):
             lat[i,j] = lats[0] + j*(lats[1] - lats[0])/width + i*(lats[2] - lats[0])/length
             lon[i,j] = lons[0] + j*(lons[1] - lons[0])/width + i*(lons[2] - lons[0])/length
-            
+
     return lat, lon
 
 def get_geoid(lat,lon):
-    
+
     row,col = lat.shape
     lat = np.asarray(lat)
     lon = np.asarray(lon)
     lat0 = lat.flatten()
-    lon0 = lon.flatten()  
+    lon0 = lon.flatten()
     obj = gh()
     geoidH = []
     for i in range(len(lat0)):
         N0 = gh.get(obj, lat0[i], lon0[i], cubic=True)
-        geoidH.append(N0)    
+        geoidH.append(N0)
     geoidH = np.asarray(geoidH)
     geoidH = geoidH.reshape(row,col)
     return geoidH
@@ -849,32 +849,40 @@ def get_geoid_point(lat,lon):
     return N0
 
 def lla_to_ecef(lat, lon, alt):
-    ecef = pyproj.Proj(proj='geocent', ellps='WGS84', datum='WGS84')
-    lla = pyproj.Proj(proj='latlong', ellps='WGS84', datum='WGS84')
-    x, y, z = pyproj.transform(lla, ecef, lon, lat, alt, radians=False)
+    # construct pyproj transform object
+    transformer = pyproj.Transformer.from_crs(
+        {"proj":'latlong', "ellps":'WGS84', "datum":'WGS84'},
+        {"proj":'geocent', "ellps":'WGS84', "datum":'WGS84'},
+    )
+    # apply coordinate transformation
+    x, y, z = transformer.transform(lon, lat, alt, radians=False)
     return x, y, z
 
 def ecef_to_lla(X, Y, Z):
-    ecef = pyproj.Proj(proj='geocent', ellps='WGS84', datum='WGS84')
-    lla = pyproj.Proj(proj='latlong', ellps='WGS84', datum='WGS84')
-    lon, lat, alt = pyproj.transform(ecef, lla, X, Y, Z, radians=False)
+    # construct pyproj transform object
+    transformer = pyproj.Transformer.from_crs(
+        {"proj":'geocent', "ellps":'WGS84', "datum":'WGS84'},
+        {"proj":'latlong', "ellps":'WGS84', "datum":'WGS84'},
+    )
+    # apply coordinate transformation
+    lon, lat, alt = transformer.transform(X, Y, Z, radians=False)
     return lon, lat, alt
 
 def get_uLOS(SatCoord,GroundLLH):
     # GroundLLH = (lat, lon, alt)
     lat, lon, alt = GroundLLH
-    
+
     sX,sY,sZ = SatCoord
     gX,gY,gZ = lla_to_ecef(lat, lon, alt)
-    
+
     uLOS0 = ((sX - gX),(sY - gY),(sZ - gZ))
     dLOS = np.sqrt((sX - gX)**2 + (sY - gY)**2 + (sZ - gZ)**2)
     uLOS = uLOS0/dLOS
-    
+
     return uLOS,uLOS0
 
 def latlon2rgaz_coarse(lat0,lon0,attr):
-    
+
     width = int(attr['WIDTH'])
     length = int(attr['LENGTH'])
     ref_lat1 = float(attr['LAT_REF1'])
@@ -883,26 +891,26 @@ def latlon2rgaz_coarse(lat0,lon0,attr):
     ref_lon1 = float(attr['LON_REF1'])
     ref_lon2 = float(attr['LON_REF2'])
     ref_lon3 = float(attr['LON_REF3'])
-    dl_Lat =(ref_lat3 - ref_lat1)/length 
-    dw_Lat = (ref_lat2 - ref_lat1)/width 
-    
-    dl_Lon = (ref_lon3 - ref_lon1)/length 
-    dw_Lon = (ref_lon2 - ref_lon1)/width 
-    
+    dl_Lat =(ref_lat3 - ref_lat1)/length
+    dw_Lat = (ref_lat2 - ref_lat1)/width
+
+    dl_Lon = (ref_lon3 - ref_lon1)/length
+    dw_Lon = (ref_lon2 - ref_lon1)/width
+
     A = np.zeros((2,2))
     A[0,:] = [dl_Lat,dw_Lat]
     A[1,:] = [dl_Lon,dw_Lon]
-    
-    
+
+
     L = [(lat0 - ref_lat1), (lon0 - ref_lon1)]
     L =np.asarray(L)
     L = L.reshape((2,1))
-    
+
     kk = np.dot(np.linalg.inv(A),L)
     #print(kk)
-    azimuth0 = round(kk[0,0] + 1) 
-    range0 = round(kk[1,0] + 1) 
-    
+    azimuth0 = round(kk[0,0] + 1)
+    range0 = round(kk[1,0] + 1)
+
     return range0,azimuth0
 
 def read_txt2array(txt):
@@ -911,11 +919,11 @@ def read_txt2array(txt):
         A = [A]
     if isinstance(A[0],bytes):
         A = A.astype(str)
-    #A = list(A)    
+    #A = list(A)
     return A
 
 def orb_state_lalo_uLOS(lat0,lon0,orb_data,attr):
-    
+
     width = int(attr['WIDTH'])
     length = int(attr['LENGTH'])
     ref_lat1 = float(attr['LAT_REF1'])
@@ -924,28 +932,28 @@ def orb_state_lalo_uLOS(lat0,lon0,orb_data,attr):
     ref_lon1 = float(attr['LON_REF1'])
     ref_lon2 = float(attr['LON_REF2'])
     ref_lon3 = float(attr['LON_REF3'])
-    # orb_state_file from read_orb_state.py   
+    # orb_state_file from read_orb_state.py
     ra0,az0 = latlon2rgaz_coarse(lat0,lon0,attr)
     #Orb = read_txt2array(orb_state_file)
     t_orb = orb_data[:,0]
     X_Orb = orb_data[:,1]
     Y_Orb = orb_data[:,2]
     Z_Orb = orb_data[:,3]
-    
-    t_tot = float(attr['END_TIME'])  - float(attr['START_TIME']) 
-    
+
+    t_tot = float(attr['END_TIME'])  - float(attr['START_TIME'])
+
     t0 = az0/length*t_tot
-    
+
     tck = intp.interp1d(t_orb,X_Orb,kind='cubic',bounds_error =False, fill_value='extrapolate')
     X0 = tck(t0)      #Again negative for consistency with hx
-    
+
     tck = intp.interp1d(t_orb,Y_Orb,kind='cubic',bounds_error =False, fill_value='extrapolate')
     Y0 = tck(t0)      #Again negative for consistency with hx
-    
+
     tck = intp.interp1d(t_orb,Z_Orb,kind='cubic',bounds_error =False, fill_value='extrapolate')
     Z0 = tck(t0)      #Again negative for consistency with hx
-    
-    
+
+
     SatCoord = (X0,Y0,Z0)
     GroundLLH = (lat0,lon0,0)
     uLOS,uLOS0 = get_uLOS(SatCoord,GroundLLH)
@@ -953,7 +961,7 @@ def orb_state_lalo_uLOS(lat0,lon0,orb_data,attr):
     return uLOS
 
 def get_sar_area(attr):
-    
+
     meta = attr
     length, width = int(attr['LENGTH']), int(attr['WIDTH'])
     if 'Y_FIRST' in attr.keys():
@@ -968,28 +976,28 @@ def get_sar_area(attr):
         minlon = min(lon0,lon1)
         maxlat = max(lat0,lat1)
         minlat = min(lat0,lat1)
-        
+
     else:
         ref_lat1 = float(attr['LAT_REF1'])
         ref_lat2 = float(attr['LAT_REF2'])
         ref_lat3 = float(attr['LAT_REF3'])
         ref_lat4 = float(attr['LAT_REF3'])
-            
+
         ref_lon1 = float(attr['LON_REF1'])
         ref_lon2 = float(attr['LON_REF2'])
         ref_lon3 = float(attr['LON_REF3'])
         ref_lon4 = float(attr['LON_REF4'])
-    
+
         maxlon = max((ref_lon1,ref_lon2,ref_lon3,ref_lon4))
         minlon = min((ref_lon1,ref_lon2,ref_lon3,ref_lon4))
-    
+
         maxlat = max((ref_lat1,ref_lat2,ref_lat3,ref_lat4))
         minlat = min((ref_lat1,ref_lat2,ref_lat3,ref_lat4))
-    
+
     return minlon,maxlon,minlat,maxlat      # wesn
 
 def get_hgt_index(hgtlvs,mindem,maxdem):
-    
+
     idxmin = 0
     nn = len(hgtlvs)
     for i in range(nn-1):
@@ -997,34 +1005,34 @@ def get_hgt_index(hgtlvs,mindem,maxdem):
             minkk = i
         if (hgtlvs[i] < maxdem) & (maxdem < hgtlvs[i+1]):
             maxkk = i+1
-            
+
     return minkk, maxkk
 
 # get the location of the points along the LOS direction
 def get_uLOS_llh(lat0,lon0,hgt_lvs,uLOS):
-    
+
     hgt_lvs = sorted(hgt_lvs)
     #print(hgt_lvs)
     nn = len(hgt_lvs)
     deltaH = np.asarray(hgt_lvs[1:nn]) - np.asarray(hgt_lvs[0:(nn-1)])
- 
+
     minh = min(hgt_lvs)    # hgt_lvs[0]
     #inc = inc/180*np.pi
-    
+
     gX,gY,gZ = lla_to_ecef(lat0, lon0, minh)
     gX1,gY1,gZ1 = lla_to_ecef(lat0, lon0, minh+1000)
     uZTD = ((gX1-gX)/1000,(gY1-gY)/1000,(gZ1-gZ)/1000)
-    
+
     dH0 = np.sqrt((uLOS[0]*uZTD[0])**2 + (uLOS[1]*uZTD[1])**2 + (uLOS[2]*uZTD[2])**2)
-    dH = uLOS[0]*uZTD[0] + uLOS[1]*uZTD[1] + uLOS[2]*uZTD[2]   
-    #dLOS_lvs0 = deltaH/np.cos(inc)   
+    dH = uLOS[0]*uZTD[0] + uLOS[1]*uZTD[1] + uLOS[2]*uZTD[2]
+    #dLOS_lvs0 = deltaH/np.cos(inc)
 
     losX = np.zeros((nn,1));losY = np.zeros((nn,1));losZ = np.zeros((nn,1))
     latH = np.zeros((nn,));lonH = np.zeros((nn,));losH = np.zeros((nn,))
-    
+
     losX[0] = gX;   losY[0]=gY;     losZ[0]=gZ
     latH[0] = lat0; lonH[0] = lon0; losH[0]=0
-    
+
     N = len(deltaH)
     dLOS_lvs = np.zeros((N,1))
     for i in range(N):
@@ -1036,16 +1044,16 @@ def get_uLOS_llh(lat0,lon0,hgt_lvs,uLOS):
         latH[i+1] = la
         lonH[i+1] = lo
         losH[i+1] = losH[i] + dLOS_lvs[i]
-    
+
     return losX,losY,losZ, latH, lonH, losH
 
 
 def read_demtif(dem_tif):
-    
-    call_str = 'gdalinfo ' + dem_tif + ' >ttt'     
+
+    call_str = 'gdalinfo ' + dem_tif + ' >ttt'
     os.system(call_str)
-    
-    f = open('ttt')    
+
+    f = open('ttt')
     for line in f:
         if 'Origin =' in line:
             STR1 = line
@@ -1057,7 +1065,7 @@ def read_demtif(dem_tif):
             AA = STR2.split('Pixel Size =')[1]
             Post_LON = AA.split('(')[1].split(',')[0]
             Post_LAT = AA.split('(')[1].split(',')[1].split(')')[0]
-        
+
         elif 'Size is' in line:
             STR3 = line
             AA =STR3.split('Size is')[1]
@@ -1065,13 +1073,13 @@ def read_demtif(dem_tif):
             FILE_LENGTH = AA.split(',')[1]
             FILE_LENGTH = FILE_LENGTH.split('\n')[0]
     f.close()
-    
+
     dem_data = io.imread(dem_tif)
     if dem_data.dtype=='float32':
         DATA_FORMAT='REAL*4'
-    else: 
+    else:
         DATA_FORMAT='INTEGER*2'
-    
+
     attr = dict()
     attr['WIDTH'] = WIDTH
     attr['LENGTH'] = FILE_LENGTH
@@ -1082,7 +1090,7 @@ def read_demtif(dem_tif):
     return dem_data, attr
 
 def get_LOS3D_coords(latlist,lonlist,hgt_lvs, orb_data,attr):
-    
+
     width = int(attr['WIDTH'])
     length = int(attr['LENGTH'])
     ref_lat1 = float(attr['LAT_REF1'])
@@ -1091,21 +1099,21 @@ def get_LOS3D_coords(latlist,lonlist,hgt_lvs, orb_data,attr):
     ref_lon1 = float(attr['LON_REF1'])
     ref_lon2 = float(attr['LON_REF2'])
     ref_lon3 = float(attr['LON_REF3'])
-    
+
     row,col = latlist.shape
     nh = len(hgt_lvs)
-    
+
     lat_intp = np.zeros((row,col,nh))
     lon_intp = np.zeros((row,col,nh))
     los_intp = np.zeros((row,col,nh))
-    
+
     #latlist = latlist.flatten()
     #lonlist = lonlist.flatten()
     #nn = len(latlist)
-    
+
     for i in range(row):
         print_progress(i+1, row, prefix='LOS locations calculating:', suffix='complete', decimals=1, barLength=50, elapsed_time=None)
-        for j in range(col):   
+        for j in range(col):
             lat0 = latlist[i,j]
             lon0 = lonlist[i,j]
             uLOS = orb_state_lalo_uLOS(lat0,lon0,orb_data,attr)
@@ -1113,10 +1121,10 @@ def get_LOS3D_coords(latlist,lonlist,hgt_lvs, orb_data,attr):
             lat_intp[i,j,:] = latH
             lon_intp[i,j,:] = lonH
             los_intp[i,j,:] = losH
-    
+
     if np.mean(lon_intp) > 150:
         lon_intp[lon_intp<0] = lon_intp[lon_intp<0] + 360
-    
+
     return lat_intp, lon_intp, los_intp
 
 def get_LOS_parameters(latlist,lonlist,Presi,Tempi,Vpri,latH, lonH, method,kriging_points_numb):
@@ -1124,54 +1132,54 @@ def get_LOS_parameters(latlist,lonlist,Presi,Tempi,Vpri,latH, lonH, method,krigi
     row,col,nh = Presi.shape
     latv = latlist[:,0]
     lonv = lonlist[0,:]
-    
+
     lat00 = latlist.flatten()
     lon00 = lonlist.flatten()
-    
+
     LosP = np.zeros((row,col,nh))
     LosT = np.zeros((row,col,nh))
     LosV = np.zeros((row,col,nh))
-    
-    
+
+
     def resi_func(m,d,y):
-        variogram_function =variogram_dict['spherical'] 
+        variogram_function =variogram_dict['spherical']
         return  y - variogram_function(m,d)
-    
+
     for i in range(nh):
         print_progress(i+1, nh, prefix='Calculating LOS parameters:', suffix='complete', decimals=1, barLength=50, elapsed_time=None)
         lat = latH[:,:,i]
         lon = lonH[:,:,i]
         lat = lat.flatten()
         lon = lon.flatten()
-        
+
         points = np.zeros((len(lat),2))
         points[:,0] = lat
         points[:,1] = lon
-        
+
         Presi0 = Presi[:,:,i]
         Tempi0 = Tempi[:,:,i]
         Vpri00 = Vpri[:,:,i]
         Vpri0 = Vpri00.flatten()
-        
+
         if method =='sklm':
             Vpri0_cor, para, corr= remove_ramp(lat00,lon00,Vpri0)
             trend = func_trend_model(lat,lon,para)
-        
+
             uk = OrdinaryKriging(lon, lat, Vpri0_cor, coordinates_type = 'geographic', nlags=50)
-            Semivariance_trend = 2*(uk.semivariance)    
+            Semivariance_trend = 2*(uk.semivariance)
             x0 = (uk.lags)/180*np.pi*R
             y0 = Semivariance_trend
             max_length = 2/3*max(x0)
             range0 = max_length/2
             LL0 = x0[x0< max_length]
             SS0 = y0[x0< max_length]
-            
+
             sill0 = max(SS0)
             sill0 = sill0.tolist()
 
-            p0 = [sill0, range0, 0.0001]    
-            vari_func = variogram_dict['spherical']        
-            tt, _ = leastsq(resi_func,p0,args = (LL0,SS0))   
+            p0 = [sill0, range0, 0.0001]
+            vari_func = variogram_dict['spherical']
+            tt, _ = leastsq(resi_func,p0,args = (LL0,SS0))
             corr, _ = pearsonr(SS0, vari_func(tt,LL0))
             if tt[2] < 0:
                 tt[2] =0
@@ -1185,7 +1193,7 @@ def get_LOS_parameters(latlist,lonlist,Presi,Tempi,Vpri,latH, lonH, method,krigi
             Vpri0 = Vpri0.reshape((latlist.shape))
             fV = RGI((latv[::-1], lonv), Vpri00[::-1,:],method=method,bounds_error=False,fill_value=None)
             z0 = fV(points)
-            
+
         LosV[:,:,i] = z0.reshape((latlist.shape))
         ######### interp template and pressure
         Presi0 = Presi0.reshape((latlist.shape))
@@ -1198,63 +1206,63 @@ def get_LOS_parameters(latlist,lonlist,Presi,Tempi,Vpri,latH, lonH, method,krigi
         Tintp = fT(points)
         LosT[:,:,i] = Tintp.reshape((latlist.shape))
         LosP[:,:,i] = Pintp.reshape((latlist.shape))
-    
+
     return LosP,LosT,LosV
 
 def kriging_levels(lonlos,latlos,hgtlvs,dwetlos,attr, maxdem, mindem, Rescale,kriging_points_numb):
-    R = 6371 
-    # Get interp grids    
+    R = 6371
+    # Get interp grids
     lonStep = lonlos[0,1,0] - lonlos[0,0,0]
     latStep = latlos[1,0,0] - latlos[0,0,0]
-    
+
     minlon,maxlon,minlat,maxlat = get_sar_area(attr)
-    
+
     minlon = minlon - 0.5 #extend 0.5 degree
     maxlon = maxlon + 0.5
     minlat = minlat - 0.5
     maxlat = maxlat + 0.5
-    
+
     lonStep = lonStep/Rescale
     latStep = latStep/Rescale
-    
+
     lonv = np.arange(minlon,maxlon,lonStep)
     latv = np.arange(maxlat,minlat,latStep)
-    
+
     lonvv,latvv = np.meshgrid(lonv,latv)
-    
+
     lonvv_all = lonvv.flatten()
     latvv_all = latvv.flatten()
-    
+
     # Get index of the useful hgtlvs
     mindex,maxdex = get_hgt_index(hgtlvs,mindem,maxdem)
     kl = np.arange(mindex,(maxdex+1))
     hgtuseful = hgtlvs[kl]
     row,col = lonvv.shape
     nh = len(kl)
-    
+
     dwet_intp = np.zeros((row,col,nh))
 
     def resi_func(m,d,y):
-        variogram_function =variogram_dict['spherical'] 
+        variogram_function =variogram_dict['spherical']
         return  y - variogram_function(m,d)
-    
+
     for i in range(len(kl)):
         #print_progress(i+1, nh, prefix='Kriging wet-delay levels:', suffix='complete', decimals=1, barLength=50, elapsed_time=None)
         lat = latlos[:,:,kl[i]]
         lon = lonlos[:,:,kl[i]]
         lat = lat.flatten()
         lon = lon.flatten()
-        
+
         dwet0 = dwetlos[:,:,kl[i]]
         dwet0 = dwet0.flatten()
-        
+
         dwet0_cor, para, corr= remove_ramp(lat,lon,dwet0)
-        print(para)
-        print(corr)
+        print(' para: ', para)
+        print(' corr: ', corr)
         trend = func_trend_model(latvv_all,lonvv_all,para)
-        
+
         uk = OrdinaryKriging(lon, lat, dwet0_cor, coordinates_type = 'geographic', nlags=50)
-        Semivariance_trend = 2*(uk.semivariance)    
+        Semivariance_trend = 2*(uk.semivariance)
         x0 = (uk.lags)/180*np.pi*R
         y0 = Semivariance_trend
         max_length = 2/3*max(x0)
@@ -1264,9 +1272,9 @@ def kriging_levels(lonlos,latlos,hgtlvs,dwetlos,attr, maxdem, mindem, Rescale,kr
         sill0 = max(SS0)
         sill0 = sill0.tolist()
 
-        p0 = [sill0, range0, 0.0001]    
-        vari_func = variogram_dict['spherical']        
-        tt, _ = leastsq(resi_func,p0,args = (LL0,SS0))   
+        p0 = [sill0, range0, 0.0001]
+        vari_func = variogram_dict['spherical']
+        tt, _ = leastsq(resi_func,p0,args = (LL0,SS0))
         corr, _ = pearsonr(SS0, vari_func(tt,LL0))
         if tt[2] < 0:
             tt[2] =0
@@ -1281,124 +1289,124 @@ def kriging_levels(lonlos,latlos,hgtlvs,dwetlos,attr, maxdem, mindem, Rescale,kr
     return dwet_intp, lonvv, latvv, hgtuseful
 
 def interp2d_levels(lonlos,latlos,hgtlvs,delaylos,attr, maxdem, mindem, Rescale):
-    # Get interp grids    
+    # Get interp grids
     lonStep = lonlos[0,1,0] - lonlos[0,0,0]
     latStep = latlos[1,0,0] - latlos[0,0,0]
-    
+
     minlon,maxlon,minlat,maxlat = get_sar_area(attr)
-    
+
     minlon = minlon - 0.5 #extend 0.5 degree
     maxlon = maxlon + 0.5
     minlat = minlat - 0.5
     maxlat = maxlat + 0.5
-    
+
     lonStep = lonStep/Rescale
     latStep = latStep/Rescale
-    
+
     lonv = np.arange(minlon,maxlon,lonStep)
     latv = np.arange(maxlat,minlat,latStep)
-    
+
     lonvv,latvv = np.meshgrid(lonv,latv)
-    
+
     lonvv_all = lonvv.flatten()
     latvv_all = latvv.flatten()
-    
+
     # Get index of the useful hgtlvs
     mindex,maxdex = get_hgt_index(hgtlvs,mindem,maxdem)
     kl = np.arange(mindex,(maxdex+1))
     hgtuseful = hgtlvs[kl]
     row,col = lonvv.shape
     nh = len(kl)
-    
+
     delay_intp = np.zeros((row,col,nh))
     for i in range(len(kl)):
         print_progress(i+1, nh, prefix='Interpolating delay levels:', suffix='complete', decimals=1, barLength=50, elapsed_time=None)
-        
+
         lat = latlos[:,:,kl[i]]
         lon = lonlos[:,:,kl[i]]
         lat = lat.flatten()
         lon = lon.flatten()
-        
+
         points = np.zeros((len(lat),2))
         points[:,0] = lon
         points[:,1] = lat
-        
+
         delay0 = delaylos[:,:,kl[i]]
         delay0 = delay0.flatten()
-        
-        
+
+
         #f = interpolate.interp2d(lon, lat, delay0, kind='linear')
-        #delayi = f(lonv, latv)      
+        #delayi = f(lonv, latv)
         delayi = interpolate.griddata(points, delay0, (lonvv,latvv), method='linear')
-        
+
         delay_intp[:,:,i] = delayi
-        
+
     return delay_intp, lonvv, latvv, hgtuseful
 
 def icams_griddata_los(lonlos,latlos,hgtlvs,ddrylos,dwetlos,attr, maxdem, mindem, Rescale,method,kriging_points_numb):
-    
+
     if method =='sklm':
         dwet_intp, lonvv, latvv, hgtuse = kriging_levels(lonlos,latlos,hgtlvs,dwetlos,attr, maxdem, mindem, Rescale,kriging_points_numb)
     else:
         dwet_intp, lonvv, latvv, hgtuse = interp2d_levels(lonlos,latlos,hgtlvs,dwetlos,attr, maxdem, mindem, Rescale)
 
     ddry_intp, lonvv, latvv, hgtuse = interp2d_levels(lonlos,latlos,hgtlvs,ddrylos,attr, maxdem, mindem, Rescale)
-    
-    
+
+
     return dwet_intp,ddry_intp, lonvv, latvv, hgtuse
 
 
 def kriging_levels_zenith(lonlist,latlist,hgtlvs,dwetlos,attr, maxdem, mindem, Rescale,kriging_points_numb):
     R = 6371
-    # Get interp grids    
+    # Get interp grids
     lat = latlist.flatten()
     lon = lonlist.flatten()
-    
+
     lonStep = lonlist[0,1] - lonlist[0,0]
     latStep = latlist[1,0] - latlist[0,0]
-    
+
     minlon,maxlon,minlat,maxlat = get_sar_area(attr)
-    
+
     minlon = minlon - 0.5 #extend 0.5 degree
     maxlon = maxlon + 0.5
     minlat = minlat - 0.5
     maxlat = maxlat + 0.5
-    
+
     lonStep = lonStep/Rescale
     latStep = latStep/Rescale
-    
+
     lonv = np.arange(minlon,maxlon,lonStep)
     latv = np.arange(maxlat,minlat,latStep)
-    
+
     lonvv,latvv = np.meshgrid(lonv,latv)
-    
+
     lonvv_all = lonvv.flatten()
     latvv_all = latvv.flatten()
-    
+
     # Get index of the useful hgtlvs
     mindex,maxdex = get_hgt_index(hgtlvs,mindem,maxdem)
     kl = np.arange(mindex,(maxdex+1))
     hgtuseful = hgtlvs[kl]
     row,col = lonvv.shape
     nh = len(kl)
-    
+
     dwet_intp = np.zeros((row,col,nh))
-    
+
     def resi_func(m,d,y):
-        variogram_function =variogram_dict['spherical'] 
+        variogram_function =variogram_dict['spherical']
         return  y - variogram_function(m,d)
-    
+
     for i in range(len(kl)):
         print_progress(i+1, nh, prefix='Kriging wet-delay levels:', suffix='complete', decimals=1, barLength=50, elapsed_time=None)
 
         dwet0 = dwetlos[:,:,kl[i]]
         dwet0 = dwet0.flatten()
-        
+
         dwet0_cor, para, corr= remove_ramp(lat,lon,dwet0)
         trend = func_trend_model(latvv_all,lonvv_all,para)
-        
+
         uk = OrdinaryKriging(lon, lat, dwet0_cor, coordinates_type = 'geographic', nlags=50)
-        Semivariance_trend = 2*(uk.semivariance)    
+        Semivariance_trend = 2*(uk.semivariance)
         x0 = (uk.lags)/180*np.pi*R
         y0 = Semivariance_trend
         max_length = 2/3*max(x0)
@@ -1408,9 +1416,9 @@ def kriging_levels_zenith(lonlist,latlist,hgtlvs,dwetlos,attr, maxdem, mindem, R
         sill0 = max(SS0)
         sill0 = sill0.tolist()
 
-        p0 = [sill0, range0, 0.0001]    
-        vari_func = variogram_dict['spherical']        
-        tt, _ = leastsq(resi_func,p0,args = (LL0,SS0))   
+        p0 = [sill0, range0, 0.0001]
+        vari_func = variogram_dict['spherical']
+        tt, _ = leastsq(resi_func,p0,args = (LL0,SS0))
         corr, _ = pearsonr(SS0, vari_func(tt,LL0))
         if tt[2] < 0:
             tt[2] =0
@@ -1425,69 +1433,69 @@ def kriging_levels_zenith(lonlist,latlist,hgtlvs,dwetlos,attr, maxdem, mindem, R
     return dwet_intp, lonvv, latvv, hgtuseful
 
 def interp2d_levels_zenith(lonlist,latlist,hgtlvs,delaylos,attr, maxdem, mindem, Rescale):
-  
-    # Get interp grids    
+
+    # Get interp grids
     lat = latlist.flatten()
     lon = lonlist.flatten()
-    
+
     points = np.zeros((len(lat),2))
     points[:,0] = lon
     points[:,1] = lat
-    
+
     lonStep = lonlist[0,1] - lonlist[0,0]
     latStep = latlist[1,0] - latlist[0,0]
-    
+
     minlon,maxlon,minlat,maxlat = get_sar_area(attr)
-    
+
     minlon = minlon - 0.5 #extend 0.5 degree
     maxlon = maxlon + 0.5
     minlat = minlat - 0.5
     maxlat = maxlat + 0.5
-    
+
     lonStep = lonStep/Rescale
     latStep = latStep/Rescale
-    
+
     lonv = np.arange(minlon,maxlon,lonStep)
     latv = np.arange(maxlat,minlat,latStep)
-    
+
     lonvv,latvv = np.meshgrid(lonv,latv)
-    
+
     lonvv_all = lonvv.flatten()
     latvv_all = latvv.flatten()
-    
+
     # Get index of the useful hgtlvs
     mindex,maxdex = get_hgt_index(hgtlvs,mindem,maxdem)
     kl = np.arange(mindex,(maxdex+1))
     hgtuseful = hgtlvs[kl]
     row,col = lonvv.shape
     nh = len(kl)
-    
+
     delay_intp = np.zeros((row,col,nh))
     for i in range(len(kl)):
         print_progress(i+1, nh, prefix='Interpolating delay levels:', suffix='complete', decimals=1, barLength=50, elapsed_time=None)
-        
+
         delay0 = delaylos[:,:,kl[i]]
         delay0 = delay0.flatten()
-        
+
         #f = interpolate.interp2d(lon, lat, delay0, kind='linear')
         #delayi = f(lonv, latv)
-        
+
         delayi = interpolate.griddata(points, delay0, (lonvv,latvv), method='linear')
         delay_intp[:,:,i] = delayi
-        
+
     return delay_intp, lonvv, latvv, hgtuseful
 
 def icams_griddata_zenith(lonlist,latlist,hgtlvs,ddrylos,dwetlos,attr, maxdem, mindem, Rescale,method,kriging_points_numb):
-    
+
     if method =='sklm':
         dwet_intp, lonvv, latvv, hgtuseful = kriging_levels_zenith(lonlist,latlist,hgtlvs,dwetlos,attr, maxdem, mindem, Rescale,kriging_points_numb)
     else:
         dwet_intp, lonvv, latvv, hgtuse = interp2d_levels_zenith(lonlist,latlist,hgtlvs,dwetlos,attr, maxdem, mindem, Rescale)
 
     ddry_intp, lonvv, latvv, hgtuse = interp2d_levels_zenith(lonlist,latlist,hgtlvs,ddrylos,attr, maxdem, mindem, Rescale)
-    
+
     return dwet_intp,ddry_intp,lonvv, latvv, hgtuse
-    
+
 
 def losPTV2del(Presi,Tempi,Vpri,losHgt,cdict,verbose=False):
     '''Computes the delay function given Pressure, Temperature and Vapor pressure.
@@ -1528,11 +1536,11 @@ def losPTV2del(Presi,Tempi,Vpri,losHgt,cdict,verbose=False):
     for i  in range(nlat):
         for j in range(nlon):
             DDry2[i,j,:] = intg.cumtrapz(DryT[i,j,:],x=losHgt[i,j,:],axis=-1)
-    
+
     val = 2*DDry2[:,:,-1]-DDry2[:,:,-2]
     val = val[:,:,None]
     DDry2 = np.concatenate((DDry2,val),axis=-1)
-    
+
     DDry2 = -1.0e-6*k1*DDry2
     for i in range(nlat):
         for j in range(nlon):
@@ -1543,13 +1551,13 @@ def losPTV2del(Presi,Tempi,Vpri,losHgt,cdict,verbose=False):
     for i  in range(nlat):
         for j in range(nlon):
             S1[i,j,:] = intg.cumtrapz(WonT[i,j,:],x=losHgt[i,j,:],axis=-1)
-            
+
     #S1 = intg.cumtrapz(WonT,x=hgt,axis=-1)
     val = 2*S1[:,:,-1]-S1[:,:,-2]
     val = val[:,:,None]
     S1 = np.concatenate((S1,val),axis=-1)
     del WonT
-    
+
     S2 = np.zeros((nlat,nlon,nhgt-1))
     for i  in range(nlat):
         for j in range(nlon):
@@ -1559,7 +1567,7 @@ def losPTV2del(Presi,Tempi,Vpri,losHgt,cdict,verbose=False):
     val = val[:,:,None]
     S2 = np.concatenate((S2,val),axis=-1)
     DWet2 = -1.0e-6*((k2-k1*Rd/Rv)*S1+k3*S2)
-    
+
     for i in range(nlat):
         for j in range(nlon):
             DWet2[i,j,:]  = DWet2[i,j,:] - DWet2[i,j,-1]
@@ -1568,16 +1576,16 @@ def losPTV2del(Presi,Tempi,Vpri,losHgt,cdict,verbose=False):
 
 def haversine(lon1, lat1, lon2, lat2):
     """
-    Calculate the great circle distance between two points 
+    Calculate the great circle distance between two points
     on the earth (specified in decimal degrees)
     """
-    # convert decimal degrees to radians 
+    # convert decimal degrees to radians
     lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
-    # haversine formula 
-    dlon = lon2 - lon1 
-    dlat = lat2 - lat1 
+    # haversine formula
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
     a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
-    c = 2 * asin(sqrt(a)) 
+    c = 2 * asin(sqrt(a))
     # Radius of earth in kilometers is 6371
     km = 6371* c
     return km
